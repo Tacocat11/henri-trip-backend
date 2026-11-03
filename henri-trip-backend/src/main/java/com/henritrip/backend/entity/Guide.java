@@ -55,6 +55,11 @@ public class Guide {
         return id;
     }
 
+    public void setId(Long id) {
+    	this.id = id;
+    	
+    }
+
     public String getTitle() {
         return title;
     }
@@ -102,4 +107,5 @@ public class Guide {
     public void setAudiences(Set<Audience> audiences) {
         this.audiences = audiences;
     }
+
 }
