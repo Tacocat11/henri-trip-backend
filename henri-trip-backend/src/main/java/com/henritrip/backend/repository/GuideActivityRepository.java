@@ -10,4 +10,6 @@ public interface GuideActivityRepository
     List<GuideActivity> findByGuideIdOrderByDayNumberAscVisitOrderAsc(
             Long guideId
     );
+    
+    boolean existsByActivityId(Long activityId);
 }

@@ -1,9 +1,15 @@
 package com.henritrip.backend.service;
 
+import com.henritrip.backend.dto.ActivityRequest;
+import com.henritrip.backend.dto.ActivityResponse;
 import com.henritrip.backend.entity.Activity;
 import com.henritrip.backend.repository.ActivityRepository;
+import com.henritrip.backend.repository.GuideActivityRepository;
+
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -12,45 +18,86 @@ import java.util.List;
 public class ActivityService {
 
     private final ActivityRepository activityRepository;
+    private final GuideActivityRepository guideActivityRepository;
 
-    public ActivityService(ActivityRepository activityRepository) {
+    public ActivityService(
+            ActivityRepository activityRepository,
+            GuideActivityRepository guideActivityRepository) {
+
         this.activityRepository = activityRepository;
+        this.guideActivityRepository = guideActivityRepository;
     }
 
     @Transactional(readOnly = true)
-    public List<Activity> getAllActivities() {
-        return activityRepository.findAll();
+    public List<ActivityResponse> getAllActivities() {
+    	 return activityRepository.findAll()
+                 .stream()
+                 .map(this::toActivityResponse)
+                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public Activity getActivityById(Long id) {
+    public ActivityResponse getActivityById(Long id) {
+        Activity activity = findActivity(id);
+        return toActivityResponse(activity);
+    }
+
+    private Activity findActivity(Long id) {
         return activityRepository.findById(id)
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Activité introuvable : " + id));
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Activité introuvable : " + id
+                ));
     }
 
-    public Activity createActivity(Activity activity) {
-        activity.setId(null);
-        return activityRepository.save(activity);
+    public ActivityResponse createActivity(ActivityRequest request) {
+        Activity activity = new Activity();
+
+        updateFields(activity, request);
+
+        return toActivityResponse(activityRepository.save(activity));
     }
 
-    public Activity updateActivity(Long id, Activity updatedActivity) {
-        Activity activity = getActivityById(id);
+    public ActivityResponse updateActivity(Long id, ActivityRequest request) {
+        Activity activity = findActivity(id);
 
-        activity.setTitle(updatedActivity.getTitle());
-        activity.setDescription(updatedActivity.getDescription());
-        activity.setCategory(updatedActivity.getCategory());
-        activity.setAddress(updatedActivity.getAddress());
-        activity.setPhone(updatedActivity.getPhone());
-        activity.setOpeningHours(updatedActivity.getOpeningHours());
-        activity.setWebsite(updatedActivity.getWebsite());
+        updateFields(activity, request);
 
-        return activityRepository.save(activity);
+        return toActivityResponse(activityRepository.save(activity));
+    }
+
+    private void updateFields(Activity activity, ActivityRequest request) {
+        activity.setTitle(request.title());
+        activity.setDescription(request.description());
+        activity.setCategory(request.category());
+        activity.setAddress(request.address());
+        activity.setPhone(request.phone());
+        activity.setOpeningHours(request.openingHours());
+        activity.setWebsite(request.website());
     }
 
     public void deleteActivity(Long id) {
-        Activity activity = getActivityById(id);
+        Activity activity = findActivity(id);
+
+        if (guideActivityRepository.existsByActivityId(id)) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Impossible de supprimer cette activité : elle est utilisée dans un guide."
+            );
+        }
         activityRepository.delete(activity);
+    }
+    
+    private ActivityResponse toActivityResponse(Activity activity) {
+        return new ActivityResponse(
+                activity.getId(),
+                activity.getTitle(),
+                activity.getDescription(),
+                activity.getCategory(),
+                activity.getAddress(),
+                activity.getPhone(),
+                activity.getOpeningHours(),
+                activity.getWebsite()
+        );
     }
 }
