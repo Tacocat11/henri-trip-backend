@@ -1,14 +1,18 @@
 
 package com.henritrip.backend.service;
 
+import com.henritrip.backend.dto.GuideInvitationResponse;
 import com.henritrip.backend.entity.Guide;
 import com.henritrip.backend.entity.GuideInvitation;
 import com.henritrip.backend.entity.User;
 import com.henritrip.backend.repository.GuideInvitationRepository;
 import com.henritrip.backend.repository.GuideRepository;
 import com.henritrip.backend.repository.UserRepository;
+
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -30,39 +34,67 @@ public class GuideInvitationService {
     }
 
     @Transactional(readOnly = true)
-    public List<GuideInvitation> getInvitationsForGuide(Long guideId) {
-        return invitationRepository.findByGuideId(guideId);
-    }
+    public List<GuideInvitationResponse> getInvitationsForGuide(Long guideId) {
 
-    public GuideInvitation inviteUser(Long userId, Long guideId) {
-        if (invitationRepository.existsByUserIdAndGuideId(userId, guideId)) {
-            throw new IllegalArgumentException(
-                    "Cet utilisateur est déjà invité à ce guide.");
+        if (!guideRepository.existsById(guideId)) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "Guide introuvable : " + guideId
+            );
         }
 
+        return invitationRepository.findByGuideId(guideId)
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    public GuideInvitationResponse inviteUser(Long userId, Long guideId) {
+
         User user = userRepository.findById(userId)
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Utilisateur introuvable : " + userId));
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Utilisateur introuvable : " + userId
+                ));
 
         Guide guide = guideRepository.findById(guideId)
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Guide introuvable : " + guideId));
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Guide introuvable : " + guideId
+                ));
+
+        if (invitationRepository.existsByUserIdAndGuideId(userId, guideId)) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Cet utilisateur est déjà invité à ce guide."
+            );
+        }
 
         GuideInvitation invitation = new GuideInvitation();
         invitation.setUser(user);
         invitation.setGuide(guide);
 
-        return invitationRepository.save(invitation);
+        return toResponse(invitationRepository.save(invitation));
     }
 
     public void revokeInvitation(Long userId, Long guideId) {
+
         if (!invitationRepository.existsByUserIdAndGuideId(userId, guideId)) {
-            throw new IllegalArgumentException(
-                    "Cette invitation n'existe pas.");
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "Cette invitation n'existe pas."
+            );
         }
 
         invitationRepository.deleteByUserIdAndGuideId(userId, guideId);
+    }
+    
+    private GuideInvitationResponse toResponse(GuideInvitation invitation) {
+        return new GuideInvitationResponse(
+                invitation.getId(),
+                invitation.getUser().getId(),
+                invitation.getUser().getEmail(),
+                invitation.getGuide().getId()
+        );
     }
 }
