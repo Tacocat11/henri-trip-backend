@@ -2,6 +2,9 @@
 package com.henritrip.backend.config;
 
 import com.henritrip.backend.service.CustomUserDetailsService;
+
+import jakarta.servlet.DispatcherType;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -53,6 +56,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
 
             .authorizeHttpRequests(auth -> auth
+            		.dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
             		.requestMatchers("/api/auth/login").permitAll()
             		.requestMatchers("/api/users/**").hasRole("ADMIN")
             		.requestMatchers("/api/guides/**").hasRole("ADMIN")

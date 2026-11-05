@@ -12,4 +12,10 @@ public interface GuideActivityRepository
     );
     
     boolean existsByActivityId(Long activityId);
+    
+    boolean existsByGuideIdAndDayNumberAndVisitOrder(
+            Long guideId,
+            Integer dayNumber,
+            Integer visitOrder
+    );
 }
