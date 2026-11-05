@@ -4,6 +4,7 @@ package com.henritrip.backend.config;
 import com.henritrip.backend.service.CustomUserDetailsService;
 
 import jakarta.servlet.DispatcherType;
+import jakarta.servlet.http.HttpServletResponse;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -54,7 +55,7 @@ public class SecurityConfig {
 
         http
             .csrf(csrf -> csrf.disable())
-
+            .cors(cors -> {})
             .authorizeHttpRequests(auth -> auth
             		.dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
             		.requestMatchers("/api/auth/login").permitAll()
@@ -63,12 +64,21 @@ public class SecurityConfig {
             		.requestMatchers("/api/activities/**").hasRole("ADMIN")
             		.anyRequest().authenticated()
             		)
+            
+            .exceptionHandling(exceptions -> exceptions
+            		.authenticationEntryPoint((request, response, authException) ->
+            		response.sendError(HttpServletResponse.SC_UNAUTHORIZED)
+            				)
+            		.accessDeniedHandler((request, response, accessDeniedException) ->
+            		response.sendError(HttpServletResponse.SC_FORBIDDEN)
+            				)
+            		)
+            
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
 
             .authenticationProvider(authenticationProvider())
-
 
             .addFilterBefore(
                 jwtFilter,
